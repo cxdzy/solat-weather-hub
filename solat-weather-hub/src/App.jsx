@@ -100,7 +100,7 @@ const PRAYERS = [
 // IMPORTANT: For local VSCode & Vercel usage, delete the empty string below
 // and uncomment the import.meta line so it uses your hidden .env file!
 // const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
-const WEATHER_API_KEY = "";
+const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 
 export default function App() {
   const [selectedLoc, setSelectedLoc] = useState(LOCATIONS[0]);
