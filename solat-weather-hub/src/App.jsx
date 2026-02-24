@@ -95,15 +95,20 @@ const PRAYERS = [
 ];
 
 // ==========================================
-// 🔑 PASTE YOUR WEATHER API KEY HERE
+// 🔑 WEATHER API KEY 
 // ==========================================
-const WEATHER_API_KEY = "e18b7fba3fde4c20b3d155029262302";
+// IMPORTANT: For local VSCode & Vercel usage, delete the empty string below
+// and uncomment the import.meta line so it uses your hidden .env file!
+// const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
+const WEATHER_API_KEY = "";
 
 export default function App() {
   const [selectedLoc, setSelectedLoc] = useState(LOCATIONS[0]);
+  const [allPrayerTimes, setAllPrayerTimes] = useState([]);
   const [prayerTimes, setPrayerTimes] = useState(null);
   const [weather, setWeather] = useState(null);
   const [nextPrayer, setNextPrayer] = useState('');
+  const [dayOffset, setDayOffset] = useState(0);
   
   const [weatherError, setWeatherError] = useState('');
   const [loadingSolat, setLoadingSolat] = useState(true);
@@ -119,33 +124,21 @@ export default function App() {
         const data = await response.json();
         
         if (data && data.prayerTime) {
-            const today = new Date();
-            const day = today.getDate().toString().padStart(2, '0');
-            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const month = monthNames[today.getMonth()];
-            const year = today.getFullYear();
-            const todayStr = `${day}-${month}-${year}`; 
-
-            let todayData = data.prayerTime.find(p => p.date === todayStr) 
-                           || data.prayerTime[today.getDate() - 1] 
-                           || data.prayerTime[0];
+            const adjustTime = (timeStr, mins) => {
+              const [h, m, s = 0] = timeStr.split(':').map(Number);
+              const d = new Date();
+              d.setHours(h, m + mins, s);
+              return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+            };
             
-            if (todayData) {
-              const adjustTime = (timeStr, mins) => {
-                const [h, m, s = 0] = timeStr.split(':').map(Number);
-                const d = new Date();
-                d.setHours(h, m + mins, s);
-                return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-              };
-              
-              todayData = {
-                ...todayData,
-                imsak: adjustTime(todayData.fajr, -10),
-                dhuha: adjustTime(todayData.syuruk, 28)
-              };
-            }
+            // Save all schedules for this month so we can access upcoming days
+            const processed = data.prayerTime.map(dayData => ({
+              ...dayData,
+              imsak: adjustTime(dayData.fajr, -10),
+              dhuha: adjustTime(dayData.syuruk, 28)
+            }));
             
-            setPrayerTimes(todayData);
+            setAllPrayerTimes(processed);
         }
       } catch (err) {
         console.error('Failed to fetch prayer times:', err);
@@ -157,19 +150,37 @@ export default function App() {
     fetchSolat();
   }, [selectedLoc]);
 
+  // Update prayer times when the user changes the Day Tab (dayOffset)
+  useEffect(() => {
+    if (allPrayerTimes.length === 0) return;
+    
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + dayOffset);
+    const day = targetDate.getDate().toString().padStart(2, '0');
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = monthNames[targetDate.getMonth()];
+    const year = targetDate.getFullYear();
+    const targetStr = `${day}-${month}-${year}`; 
+
+    // Find the specific date, or use the first data as a fallback (if skipping to next month)
+    const targetData = allPrayerTimes.find(p => p.date === targetStr) || allPrayerTimes[0];
+    setPrayerTimes(targetData);
+  }, [allPrayerTimes, dayOffset]);
+
   // ==========================================
   // API CALL 2: WEATHER 
   // ==========================================
   useEffect(() => {
     const fetchWeather = async () => {
-      if (!WEATHER_API_KEY || WEATHER_API_KEY === 'YOUR_API_KEY_HERE') {
+      if (!WEATHER_API_KEY) {
         setWeather(null);
         return;
       }
 
       try {
         setWeatherError('');
-        const res = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${selectedLoc.city}&days=1&aqi=no`);
+        // Change to days=7 to get a weekly forecast
+        const res = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${selectedLoc.city}&days=7&aqi=no`);
         const data = await res.json();
         
         if (data.error) {
@@ -193,6 +204,12 @@ export default function App() {
     if (!prayerTimes) return;
     
     const updateNextPrayer = () => {
+      // Don't show the "Next" highlight if the user is viewing tomorrow's/future schedule tab
+      if (dayOffset !== 0) {
+        setNextPrayer('');
+        return;
+      }
+
       const now = new Date();
       const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
 
@@ -231,7 +248,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 font-sans p-4 md:p-8 lg:p-12 flex flex-col items-center">
       
-      <div className="max-w-7xl w-full space-y-8 md:space-y-10">
+      <div className="max-w-7xl w-full space-y-6 md:space-y-10">
         
         {/* HEADER SECTION */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -267,10 +284,32 @@ export default function App() {
           </div>
         </header>
 
+        {/* DAY SELECTOR TABS (7 Days) */}
+        <div className="flex overflow-x-auto gap-2 bg-slate-800/60 p-2 rounded-2xl w-full border border-slate-700/50 shadow-lg mt-2 mb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {[0, 1, 2, 3, 4, 5, 6].map(offset => {
+            const d = new Date();
+            d.setDate(d.getDate() + offset);
+            const label = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : d.toLocaleDateString('en-MY', { weekday: 'long' });
+            return (
+              <button
+                key={offset}
+                onClick={() => setDayOffset(offset)}
+                className={`flex-1 min-w-[100px] md:min-w-[120px] py-2.5 px-3 rounded-xl text-sm md:text-base font-bold transition-all duration-300 capitalize whitespace-nowrap ${
+                  dayOffset === offset 
+                    ? 'bg-emerald-500 text-emerald-950 shadow-md transform scale-[1.02]' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
         {/* MAIN CONTENT VERTICAL LAYOUT */}
         <div className="flex flex-col gap-6 md:gap-8">
           
-          {/* WAKTU SOLAT SECTION (Now on Top) */}
+          {/* WAKTU SOLAT SECTION */}
           <div className="w-full">
             <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-6 md:p-8 lg:p-10 shadow-2xl">
               <div className="flex items-center gap-3 md:gap-4 mb-8 md:mb-10">
@@ -318,16 +357,16 @@ export default function App() {
             </div>
           </div>
 
-          {/* WEATHER SECTION (Now on Bottom) */}
+          {/* WEATHER SECTION */}
           <div className="w-full">
-            {!WEATHER_API_KEY || WEATHER_API_KEY === 'YOUR_API_KEY_HERE' ? (
+            {!WEATHER_API_KEY ? (
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 md:p-10 flex flex-col items-center justify-center text-center shadow-lg w-full">
                 <Info className="w-12 h-12 md:w-16 md:h-16 text-slate-500 mb-4" />
                 <h3 className="text-xl md:text-2xl font-bold text-slate-300">API Key Required</h3>
                 <p className="mt-4 text-sm md:text-base text-slate-400">
-                  Open your code and paste your WeatherAPI key into the <br/>
-                  <code className="bg-slate-900 text-emerald-400 px-2 py-1 rounded inline-block mt-2">WEATHER_API_KEY</code> <br/>
-                  variable at the top!
+                  Please add your WeatherAPI key to a <code className="text-emerald-400">.env</code> file in your project root:<br/>
+                  <code className="bg-slate-900 text-emerald-400 px-3 py-1.5 rounded-lg inline-block mt-3 border border-slate-700">VITE_WEATHER_API_KEY=your_api_key_here</code> <br/>
+                  <span className="text-xs text-slate-500 mt-3 block font-bold">(Remember to restart your dev server after adding it!)</span>
                 </p>
               </div>
             ) : weatherError ? (
@@ -336,62 +375,77 @@ export default function App() {
                 <p className="text-base md:text-lg text-red-300 font-medium">{weatherError}</p>
               </div>
             ) : weather ? (
-              <div className="bg-gradient-to-br from-emerald-900/40 to-slate-800/80 border border-emerald-500/20 rounded-3xl p-8 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-12 relative overflow-hidden group shadow-2xl w-full">
-                {/* Background Decor */}
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
-                  <Cloud className="w-48 h-48 md:w-64 md:h-64" />
-                </div>
+              (() => {
+                const isToday = dayOffset === 0;
+                // Get forecast data based on the day tab. If data is not available for the 7th day (API limitation), fallback to the first day.
+                const targetForecast = weather.forecast?.forecastday[dayOffset] || weather.forecast?.forecastday[0];
                 
-                {/* Current Weather (Left side on Desktop) */}
-                <div className="relative z-10 flex flex-col justify-center lg:w-1/3 xl:w-1/4">
-                  <h2 className="text-lg md:text-xl text-slate-400 font-semibold flex items-center gap-2 mb-4">
-                    Current Weather
-                  </h2>
-                  <div className="flex justify-between items-center gap-4">
-                    <div className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter">
-                      {Math.round(weather.current.temp_c)}°<span className="text-3xl md:text-4xl text-emerald-500">C</span>
-                    </div>
-                    <img src={`https:${weather.current.condition.icon}`} alt="Weather icon" className="w-24 h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
-                  </div>
-                  
-                  <p className="text-2xl md:text-3xl font-bold text-slate-100 capitalize mt-4 mb-6">
-                    {weather.current.condition.text}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-3 md:gap-4">
-                    <div className="flex items-center gap-2 text-slate-300 text-base md:text-lg font-medium bg-slate-900/50 px-4 py-2.5 rounded-xl shadow-inner">
-                      <Wind className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
-                      {weather.current.wind_kph} km/h
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-300 text-base md:text-lg font-medium bg-slate-900/50 px-4 py-2.5 rounded-xl shadow-inner">
-                      <Droplets className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
-                      {weather.current.humidity}%
-                    </div>
-                  </div>
-                </div>
+                // Ensure no errors if the API fails to provide records for a specific day
+                if (!targetForecast) return null;
 
-                {/* Hourly Forecast (Right side on Desktop) */}
-                {weather.forecast && weather.forecast.forecastday[0] && (
-                  <div className="relative z-10 flex-grow border-t lg:border-t-0 lg:border-l border-slate-700/50 pt-8 lg:pt-0 lg:pl-12 flex flex-col justify-center overflow-hidden">
-                    <h3 className="text-sm md:text-base font-semibold text-slate-400 mb-6 uppercase tracking-wider">Today's Forecast</h3>
-                    <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      {weather.forecast.forecastday[0].hour
-                        .filter(h => h.time_epoch >= Math.floor(Date.now() / 1000) - 3600)
-                        .map((hour, index) => (
-                        <div key={index} className="flex flex-col items-center min-w-[80px] md:min-w-[90px] bg-slate-900/40 hover:bg-slate-800/60 transition-colors p-4 rounded-2xl shadow-inner border border-slate-700/30">
-                          <span className="text-slate-300 text-sm md:text-base font-medium mb-2 whitespace-nowrap">
-                            {new Date(hour.time).getHours() === new Date().getHours() ? 'Now' : 
-                             new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
-                          </span>
-                          <img src={`https:${hour.condition.icon}`} alt="icon" className="w-12 h-12 object-contain my-2" />
-                          <span className="text-slate-100 font-bold text-xl md:text-2xl mt-1">{Math.round(hour.temp_c)}°</span>
+                const currentTemp = isToday ? weather.current.temp_c : targetForecast.day.avgtemp_c;
+                const condition = isToday ? weather.current.condition : targetForecast.day.condition;
+                const wind = isToday ? weather.current.wind_kph : targetForecast.day.maxwind_kph;
+                const humidity = isToday ? weather.current.humidity : targetForecast.day.avghumidity;
+                
+                return (
+                  <div className="bg-gradient-to-br from-emerald-900/40 to-slate-800/80 border border-emerald-500/20 rounded-3xl p-8 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-12 relative overflow-hidden group shadow-2xl w-full">
+                    {/* Background Decor */}
+                    <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+                      <Cloud className="w-48 h-48 md:w-64 md:h-64" />
+                    </div>
+                    
+                    {/* Current Weather (Left side on Desktop) */}
+                    <div className="relative z-10 flex flex-col justify-center lg:w-1/3 xl:w-1/4">
+                      <h2 className="text-lg md:text-xl text-slate-400 font-semibold flex items-center gap-2 mb-4">
+                        {isToday ? 'Current Weather' : 'Average Weather'}
+                      </h2>
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter">
+                          {Math.round(currentTemp)}°<span className="text-3xl md:text-4xl text-emerald-500">C</span>
                         </div>
-                      ))}
+                        <img src={`https:${condition.icon}`} alt="Weather icon" className="w-24 h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
+                      </div>
+                      
+                      <p className="text-2xl md:text-3xl font-bold text-slate-100 capitalize mt-4 mb-6">
+                        {condition.text}
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-3 md:gap-4">
+                        <div className="flex items-center gap-2 text-slate-300 text-base md:text-lg font-medium bg-slate-900/50 px-4 py-2.5 rounded-xl shadow-inner">
+                          <Wind className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
+                          {wind} km/h
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300 text-base md:text-lg font-medium bg-slate-900/50 px-4 py-2.5 rounded-xl shadow-inner">
+                          <Droplets className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
+                          {humidity}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hourly Forecast (Right side on Desktop) */}
+                    <div className="relative z-10 flex-grow border-t lg:border-t-0 lg:border-l border-slate-700/50 pt-8 lg:pt-0 lg:pl-12 flex flex-col justify-center overflow-hidden">
+                      <h3 className="text-sm md:text-base font-semibold text-slate-400 mb-6 uppercase tracking-wider">
+                        {isToday ? "Today's Forecast" : "Hourly Forecast"}
+                      </h3>
+                      <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        {targetForecast.hour
+                          .filter(h => isToday ? h.time_epoch >= Math.floor(Date.now() / 1000) - 3600 : true)
+                          .map((hour, index) => (
+                          <div key={index} className="flex flex-col items-center min-w-[80px] md:min-w-[90px] bg-slate-900/40 hover:bg-slate-800/60 transition-colors p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                            <span className="text-slate-300 text-sm md:text-base font-medium mb-2 whitespace-nowrap">
+                              {isToday && new Date(hour.time).getHours() === new Date().getHours() ? 'Now' : 
+                               new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                            </span>
+                            <img src={`https:${hour.condition.icon}`} alt="icon" className="w-12 h-12 object-contain my-2" />
+                            <span className="text-slate-100 font-bold text-xl md:text-2xl mt-1">{Math.round(hour.temp_c)}°</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                )}
-
-              </div>
+                );
+              })()
             ) : (
               <div className="bg-slate-800/40 animate-pulse rounded-3xl p-8 w-full min-h-[250px]"></div>
             )}
