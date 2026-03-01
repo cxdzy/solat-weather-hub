@@ -1,16 +1,43 @@
-# React + Vite
+# Solat and Weather Hub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web application that provides accurate prayer times (Waktu Solat) and weather forecasts for various locations across Malaysia.
+https://weather-solat-hub.vercel.app/
 
-Currently, two official plugins are available:
+## Project Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This project was primarily developed as a practical learning exercise to understand how Application Programming Interfaces (APIs) work. It serves as a real-world implementation of:
 
-## React Compiler
+* Fetching and handling data from a public API without authentication.
+* Securely connecting to an authenticated API using environment variables and API keys.
+* Parsing JSON data and managing asynchronous state within a React application.
+* Synchronizing data from two different sources based on a single user input (location).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+* **Location-Based Data**: Users can select from a comprehensive list of Malaysian districts and cities.
+* **Prayer Times**: Displays daily prayer schedules, including manually calculated Imsak and Dhuha times based on standard local parameters.
+* **Weather Forecast**: Integrates current weather conditions and a 7-day weather forecast, including temperature, wind speed, and humidity.
+* **Responsive Design**: The interface is fully responsive and adapts to mobile, tablet, and desktop screens.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Technologies Used
+
+* React (Vite)
+* Tailwind CSS for styling
+* Lucide React for iconography
+* Vercel Analytics for traffic monitoring
+
+## APIs Integrated
+
+1. [**Waktu Solat API**](https://api.waktusolat.app) - Used to retrieve official JAKIM prayer time zones and schedules.
+2. [**WeatherAPI**](https://www.weatherapi.com) - Used to retrieve real-time weather and forecast data.
+
+## Running the Project Locally
+
+If you wish to run this project on your local machine, please follow these steps:
+
+1. Clone this repository.
+2. Open your terminal and run `npm install` to install the required dependencies.
+3. Obtain a free API key from [WeatherAPI.com](https://www.weatherapi.com).
+4. Create a `.env` file in the root directory of the project and add your API key:
+   `VITE_WEATHER_API_KEY=your_api_key_here`
+5. Run `npm run dev` to start the local development server.
