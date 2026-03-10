@@ -94,12 +94,6 @@ const PRAYERS = [
   { key: 'isha', label: 'Isyak' }
 ];
 
-// ==========================================
-// 🔑 WEATHER API KEY 
-// ==========================================
-// IMPORTANT: For local VSCode & Vercel usage, delete the empty string below
-// and uncomment the import.meta line so it uses your hidden .env file!
-// const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 
 export default function App() {
@@ -120,7 +114,9 @@ export default function App() {
     const fetchSolat = async () => {
       setLoadingSolat(true);
       try {
-        const response = await fetch(`https://api.waktusolat.app/solat/${selectedLoc.id}`);
+        const zoneId = selectedLoc.id.replace(/[^A-Z0-9]/gi, '');
+        const response = await fetch(`https://api.waktusolat.app/solat/${encodeURIComponent(zoneId)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
         if (data && data.prayerTime) {
@@ -180,11 +176,12 @@ export default function App() {
       try {
         setWeatherError('');
         // Change to days=7 to get a weekly forecast
-        const res = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${selectedLoc.city}&days=7&aqi=no`);
+        const res = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(selectedLoc.city)}&days=7&aqi=no`);
+        if (!res.ok && res.status !== 400) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         
         if (data.error) {
-            setWeatherError(data.error.message);
+            setWeatherError(typeof data.error.message === 'string' ? data.error.message.slice(0, 200) : 'Unknown error');
             setWeather(null);
         } else {
             setWeather(data); 
