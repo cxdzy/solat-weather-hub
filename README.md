@@ -3,6 +3,9 @@
 A web application that provides accurate prayer times (Waktu Solat) and weather forecasts for various locations across Malaysia.
 https://weather-solat-hub.vercel.app/
 
+![Dashboard 1](https://github.com/cxdzy/solat-weather-hub/blob/main/solat-weather-hub/src/assets/Dashboard1.png?raw=true)
+![Dashboard 2](https://github.com/cxdzy/solat-weather-hub/blob/main/solat-weather-hub/src/assets/Dashboard2.png?raw=true)
+
 ## Project Purpose
 
 This project was primarily developed as a practical learning exercise to understand how Application Programming Interfaces (APIs) work. It serves as a real-world implementation of:
