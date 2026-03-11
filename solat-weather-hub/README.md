@@ -3,8 +3,7 @@
 A web application that provides accurate prayer times (Waktu Solat) and weather forecasts for various locations across Malaysia.
 https://weather-solat-hub.vercel.app/
 
-![Dashboard 1](./solat-weather-hub/src/assets/Dashboard1.png)
-![Dashboard 2](./solat-weather-hub/src/assets/Dashboard2.png)
+![Dashboard 1](https://github.com/cxdzy/solat-weather-hub/blob/main/solat-weather-hub/src/assets/Dashboard1.png?raw=true)![Dashboard 2](https://github.com/cxdzy/solat-weather-hub/blob/main/solat-weather-hub/src/assets/Dashboard2.png?raw=true)
 
 ## Project Purpose
 
